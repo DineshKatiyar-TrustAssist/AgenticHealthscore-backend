@@ -1,0 +1,36 @@
+import uuid
+from datetime import datetime
+from sqlalchemy import String, Boolean, DateTime, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from app.database import Base
+
+
+class Customer(Base):
+    """Customer model representing a customer being monitored."""
+
+    __tablename__ = "customers"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    slack_user_id: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Relationships
+    channels = relationship("Channel", back_populates="customer")
+    health_scores = relationship("HealthScore", back_populates="customer", order_by="desc(HealthScore.created_at)")
+    action_items = relationship("ActionItem", back_populates="customer")
+
+    def __repr__(self) -> str:
+        return f"<Customer(id={self.id}, name={self.name}, company={self.company_name})>"
