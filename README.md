@@ -1,4 +1,4 @@
-# Customer Health Score - Agentic AI Application
+# Customer Health Score - Agentic AI Application  
 
 An AI-powered application that analyzes Slack conversations to generate customer health scores, predict churn, and suggest action items. Built with a multi-agent architecture using Google Gemini AI.
 
