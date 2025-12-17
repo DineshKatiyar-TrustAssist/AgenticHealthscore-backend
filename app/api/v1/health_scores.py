@@ -196,14 +196,16 @@ async def calculate_all_health_scores(
                         ]
 
                         created = await message_service.bulk_create(messages_data)
-                        total_messages_fetched += len(messages)
-                        logger.info(f"Fetched {len(messages)} messages from channel {channel.name} for customer {customer.name}")
+                        # Commit after each channel to ensure messages are immediately visible
+                        await db.commit()
+                        await db.flush()  # Ensure data is written and visible
+                        total_messages_fetched += created  # Use created count, not len(messages)
+                        logger.info(f"Fetched and stored {created} messages from channel {channel.name} for customer {customer.name} (total from Slack: {len(messages)})")
                     except Exception as e:
                         logger.warning(f"Failed to fetch messages from channel {channel.name}: {e}")
                         continue
 
-        await db.commit()
-        logger.info(f"Total messages fetched: {total_messages_fetched}")
+        logger.info(f"Total messages fetched and stored: {total_messages_fetched}")
 
         # Step 2: Calculate health scores for all customers
         orchestrator = CustomerHealthOrchestrator(db, google_api_key=google_api_key)
