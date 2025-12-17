@@ -51,8 +51,6 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
-.pytest_cache/
-.mypy_cache/
 
 # Translations
 *.mo
@@ -142,5 +140,3 @@ logs/
 *.bak
 *.swp
 
-# FastAPI specific
-.pytest_cache/
