@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from pathlib import Path
+import os
 from app.config import settings
 from app.utils.logger import setup_logger
 
@@ -43,7 +44,19 @@ try:
         connect_args=connect_args,
         pool_pre_ping=True,
     )
-    logger.info(f"SQLite database engine created: {db_path}")
+    
+    # Log database path verification
+    db_path_obj = Path(db_path)
+    db_exists = db_path_obj.exists() if db_path != ":memory:" else False
+    db_dir_exists = db_path_obj.parent.exists() if db_path != ":memory:" and db_path_obj.parent else False
+    db_dir_writable = os.access(db_path_obj.parent, os.W_OK) if db_path != ":memory:" and db_dir_exists else False
+    
+    logger.info(
+        f"SQLite database engine created: {db_path}, "
+        f"file exists: {db_exists}, "
+        f"directory exists: {db_dir_exists}, "
+        f"directory writable: {db_dir_writable}"
+    )
         
 except Exception as e:
     logger.error(f"Failed to create database engine: {str(e)}")

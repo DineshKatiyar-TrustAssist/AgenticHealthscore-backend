@@ -1,6 +1,5 @@
 from typing import Dict, List
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
 
 from app.agents.sentiment_agent import SentimentAnalysisAgent
 from app.agents.health_score_agent import HealthScoreAgent
@@ -34,13 +33,14 @@ class CustomerHealthOrchestrator:
 
     async def analyze_customer(
         self,
-        customer_id: UUID,
+        customer_id: str,
         analysis_period_days: int = 30,
     ) -> Dict:
         """Run complete health analysis workflow for a customer."""
         from app.services.customer_service import CustomerService
         from app.services.message_service import MessageService
         from app.services.health_score_service import HealthScoreService
+        from app.services.channel_service import ChannelService
 
         try:
             logger.info(f"Starting health analysis for customer {customer_id}")
@@ -49,6 +49,7 @@ class CustomerHealthOrchestrator:
             customer_service = CustomerService(self.db)
             message_service = MessageService(self.db)
             health_score_service = HealthScoreService(self.db)
+            channel_service = ChannelService(self.db)
 
             # Get customer
             customer = await customer_service.get_by_id(customer_id)
@@ -58,10 +59,28 @@ class CustomerHealthOrchestrator:
             # Get messages
             now = datetime.now(timezone.utc)
             period_start = now - timedelta(days=analysis_period_days)
+            
+            # Log query parameters before querying
+            logger.info(f"Querying messages for customer {customer_id} ({customer.name}) from {period_start.isoformat()} to {now.isoformat()}")
+            
+            # Get channel count for this customer
+            channels = await channel_service.get_by_customer_id(customer_id)
+            logger.info(f"Customer {customer_id} has {len(channels)} channel(s) linked")
+            
             messages = await message_service.get_customer_messages(customer_id=customer_id, since=period_start)
+            
+            logger.info(f"Found {len(messages)} messages in database for customer {customer_id} in the analysis period")
 
             if not messages:
-                return {"status": "insufficient_data", "customer_id": str(customer_id), "message": "No messages found"}
+                error_msg = (
+                    f"No messages found for customer {customer.name} (ID: {customer_id}) "
+                    f"in the analysis period ({period_start.isoformat()} to {now.isoformat()}). "
+                    f"Customer has {len(channels)} channel(s) linked. "
+                    f"Please ensure channels are linked, monitored, and have messages in the selected time period. "
+                    f"If messages were just fetched, there may be a database visibility issue."
+                )
+                logger.warning(error_msg)
+                return {"status": "insufficient_data", "customer_id": str(customer_id), "message": error_msg}
 
             # Convert to dict format
             message_dicts = [{"content": m.content, "user_type": m.user_type, "timestamp": m.message_timestamp.isoformat()} for m in messages]

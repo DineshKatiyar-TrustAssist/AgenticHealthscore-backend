@@ -230,26 +230,95 @@ async def calculate_customer_health_score(
     if not slack_token or not google_api_key:
         raise HTTPException(status_code=400, detail="API keys not configured")
 
+    logger.info(f"Starting health score calculation for customer {customer_id} (analysis period: {request.analysis_period_days} days)")
+
     # Fetch messages from Slack
     channel_service = ChannelService(db)
     message_service = MessageService(db)
     slack_client = SlackAPIClient(token=slack_token)
     channels = await channel_service.get_by_customer_id(customer_id)
-    total_messages_fetched = 0
-    oldest = datetime.now(timezone.utc) - timedelta(days=request.analysis_period_days)
     
+    # Validation: Check if customer has channels linked
+    if len(channels) == 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="No channels linked to this customer. Please link at least one Slack channel first."
+        )
+    
+    # Validation: Check if any channels are monitored
+    monitored_count = sum(1 for c in channels if c.is_monitored)
+    if monitored_count == 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="No monitored channels found for this customer. Please enable monitoring for at least one channel."
+        )
+    
+    logger.info(f"Customer {customer_id} has {len(channels)} channel(s), {monitored_count} monitored")
+    
+    # Log channel details
+    for channel in channels:
+        logger.info(f"Channel: {channel.name} (ID: {channel.id}), monitored: {channel.is_monitored}")
+    
+    total_messages_fetched = 0
+    now = datetime.now(timezone.utc)
+    oldest = now - timedelta(days=request.analysis_period_days)
+    
+    logger.info(f"Fetching messages from {oldest.isoformat()} to {now.isoformat()}")
+    
+    messages_timestamps = []
     for channel in channels:
         if channel.is_monitored:
             try:
+                logger.info(f"Fetching messages from channel {channel.name} (ID: {channel.id})")
                 messages = await slack_client.fetch_channel_history(channel_id=channel.slack_channel_id, oldest=oldest)
                 messages_data = [
                     {"channel_id": channel.id, "ts": msg["ts"], "text": msg.get("text", ""), "user": msg.get("user"), "user_type": "customer"}
                     for msg in messages if msg.get("text")
                 ]
-                total_messages_fetched += await message_service.bulk_create(messages_data)
+                
+                if messages_data:
+                    # Extract timestamps for logging
+                    for msg_data in messages_data:
+                        try:
+                            ts = float(msg_data["ts"])
+                            messages_timestamps.append(datetime.fromtimestamp(ts, tz=timezone.utc))
+                        except (ValueError, KeyError):
+                            pass
+                
+                channel_messages_fetched = await message_service.bulk_create(messages_data)
+                total_messages_fetched += channel_messages_fetched
                 await db.commit()
+                await db.flush()  # Ensure data is written and visible
+                logger.info(f"Fetched and committed {channel_messages_fetched} messages from channel {channel.name}")
             except Exception as e:
-                logger.warning(f"Failed to fetch messages from channel {channel.id}: {e}")
+                logger.warning(f"Failed to fetch messages from channel {channel.id} ({channel.name}): {e}")
+    
+    logger.info(f"Total messages fetched: {total_messages_fetched}")
+    
+    if messages_timestamps:
+        min_ts = min(messages_timestamps)
+        max_ts = max(messages_timestamps)
+        logger.info(f"Message timestamp range: {min_ts.isoformat()} to {max_ts.isoformat()}")
+    
+    # Verify messages are queryable after commit
+    verify_messages = await message_service.get_customer_messages(
+        customer_id=customer_id, 
+        since=oldest
+    )
+    logger.info(f"Verification: Found {len(verify_messages)} messages in database for customer {customer_id} since {oldest.isoformat()}")
+    
+    if len(verify_messages) == 0 and total_messages_fetched > 0:
+        logger.error(f"CRITICAL: Fetched {total_messages_fetched} messages but query returned 0. Possible database visibility issue.")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Messages were fetched ({total_messages_fetched}) but are not queryable. This may indicate a database configuration issue."
+        )
+    
+    if total_messages_fetched == 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No messages were fetched from Slack. This could be because: (1) channels have no messages in the selected time period ({oldest.isoformat()} to {now.isoformat()}), (2) all message fetches failed, or (3) messages were filtered out (empty text)."
+        )
     
     # Calculate health score
     try:
