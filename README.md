@@ -1,4 +1,4 @@
-# Customer Health Score - Agentic AI Application  
+# Customer Health Score - Agentic AI Application
 
 An AI-powered application that analyzes Slack conversations to generate customer health scores, predict churn, and suggest action items. Built with a multi-agent architecture using Google Gemini AI.
 
@@ -51,7 +51,7 @@ AgenticHealthscore/
 │   │   ├── gemini/              # Gemini AI client & prompts
 │   │   ├── scheduler/           # Background jobs (scheduled tasks)
 │   │   └── utils/               # Utility functions (logging, etc.)
-│   ├── alembic/                 # (Optional) Database migrations - not needed for SQLite
+│   ├── alembic/                 # Database migrations
 │   ├── tests/                   # Test files
 │   ├── requirements.txt         # Python dependencies
 │   ├── Dockerfile               # Backend Docker image
@@ -163,7 +163,7 @@ SQLite database is created automatically on first run. No separate database setu
 | DELETE | `/api/v1/customers/{id}` | Delete customer |
 | GET | `/api/v1/customers/{id}/health-scores` | Get customer health score history |
 | GET | `/api/v1/customers/{id}/health-score/latest` | Get latest health score |
-| POST | `/api/v1/customers/{id}/health-score/calculate` | Calculate health score for customer (fetches recent messages from Slack first) |
+| POST | `/api/v1/customers/{id}/health-score/calculate` | Calculate health score for customer (validates channels, fetches recent messages from Slack, then calculates) |
 
 ### Channels
 | Method | Endpoint | Description |
@@ -179,7 +179,7 @@ SQLite database is created automatically on first run. No separate database setu
 |--------|----------|-------------|
 | GET | `/api/v1/health-scores` | List health scores (latest per customer) |
 | GET | `/api/v1/health-scores/{id}` | Get health score by ID |
-| POST | `/api/v1/health-scores/calculate-all` | Calculate health scores for all customers |
+| POST | `/api/v1/health-scores/calculate-all` | Calculate health scores for all customers (fetches messages from all monitored channels first) |
 
 ### Action Items
 | Method | Endpoint | Description |
@@ -206,13 +206,21 @@ SQLite database is created automatically on first run. No separate database setu
 
 The system uses a multi-agent architecture:
 
-1. **Message Fetching**: When calculating a health score, recent messages are automatically fetched from Slack channels linked to the customer
+1. **Message Fetching**: When calculating a health score, recent messages are automatically fetched from Slack channels linked to the customer. Messages are committed immediately after each channel to ensure visibility and accurate message counts.
 2. **Sentiment Agent**: Analyzes message sentiment using Gemini
 3. **Health Score Agent**: Calculates health score (1-10) with component breakdown
 4. **Churn Prediction Agent**: Predicts churn probability with risk factors
 5. **Action Item Agent**: Generates actionable recommendations
 
 The **Orchestrator** coordinates these agents in sequence for each customer analysis. When using the "Recalculate Score" button, the system first fetches fresh messages from Slack before performing the analysis.
+
+### Recent Improvements
+
+- **Transaction Visibility**: Messages are now committed and flushed immediately after each channel fetch, ensuring they're visible to subsequent queries and accurate message counts in the UI
+- **Enhanced Error Handling**: Better validation and error messages for missing channels, unmonitored channels, and message fetching failures
+- **Improved Logging**: Comprehensive logging throughout the message fetching and health score calculation process for better debugging
+- **Message Count Accuracy**: Fixed message count calculation to use actual stored messages (excluding duplicates) rather than raw Slack API responses
+- **Type Safety**: Fixed type annotations throughout the codebase (UUID → str for SQLite compatibility)
 
 ## Scheduled Tasks
 
@@ -229,9 +237,37 @@ Health scores are automatically calculated daily at 2 AM (configurable via `HEAL
 | `MESSAGE_BATCH_SIZE` | Number of messages to process per batch | `50` |
 | `HEALTH_SCORE_CALCULATION_HOUR` | Hour of day for scheduled calculations (0-23) | `2` |
 | `DEBUG` | Enable debug mode | `False` |
-| `SECRET_KEY` | Secret key for application (optional, not currently used) | `change-me-in-production` |
+| `SECRET_KEY` | Secret key for application | `change-me-in-production` |
 
 **Note**: `GOOGLE_API_KEY` and `SLACK_API_TOKEN` are now stored in the database and configured through the Settings page in the UI. They are no longer required in the `.env` file.
+
+## Cloud Run Deployment
+
+Deploy to Google Cloud Run using the Cloud Run UI with GitHub integration:
+
+- **Deployment Guide**: See [CLOUD_RUN_UI_DEPLOYMENT.md](CLOUD_RUN_UI_DEPLOYMENT.md)
+
+### Key Points:
+
+1. **Backend**: Deploy from `backend/Dockerfile` with SQLite database
+2. **Frontend**: Deploy from `frontend/Dockerfile` with backend URL configured
+3. **Environment Variables**: Set `DATABASE_URL` via Cloud Run UI (must point to mounted volume: `sqlite+aiosqlite:///mnt/data/healthscore.db`)
+4. **Persistent Storage**: Mount Cloud Storage bucket as volume in Cloud Run UI (much cheaper than Filestore)
+5. **Database Path**: Ensure `DATABASE_URL` matches the volume mount path (`/mnt/data`) for proper persistence
+
+### Troubleshooting
+
+**"No messages found" error:**
+- Verify channels are linked to customers
+- Ensure channels have monitoring enabled
+- Check that messages exist in the selected time period
+- Verify `DATABASE_URL` points to the mounted volume path
+- Check Cloud Run logs for detailed error messages
+
+**Message counts not updating:**
+- Messages are now committed immediately after each channel fetch
+- Refresh the channels page to see updated counts
+- Verify database path is correctly configured
 
 ## License
 
