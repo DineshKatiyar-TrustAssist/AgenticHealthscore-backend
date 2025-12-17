@@ -1,9 +1,13 @@
 import uuid
-from datetime import datetime, date
-from sqlalchemy import String, DateTime, ForeignKey, Text, Integer, Date, CheckConstraint
+from datetime import datetime, date, timezone
+from sqlalchemy import String, DateTime, ForeignKey, Text, Integer, Date, CheckConstraint, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.database import Base
+
+
+def utcnow():
+    """Return timezone-aware UTC datetime."""
+    return datetime.now(timezone.utc)
 
 
 class ActionItem(Base):
@@ -15,14 +19,14 @@ class ActionItem(Base):
         CheckConstraint("effort_score >= 1 AND effort_score <= 10", name="check_effort_range"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    customer_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("customers.id", ondelete="CASCADE"), nullable=False, index=True
+    customer_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("customers.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    health_score_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("health_scores.id", ondelete="SET NULL"), nullable=True, index=True
+    health_score_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("health_scores.id", ondelete="SET NULL"), nullable=True, index=True
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -42,15 +46,15 @@ class ActionItem(Base):
     effort_score: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 1-10
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(), default=utcnow
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime(), default=utcnow, onupdate=utcnow
     )
     completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(), nullable=True
     )
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
 
     # Relationships
     customer = relationship("Customer", back_populates="action_items")

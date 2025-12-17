@@ -1,6 +1,5 @@
 from typing import List, Optional
-from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +20,7 @@ class HealthScoreService:
 
     async def create(
         self,
-        customer_id: UUID,
+        customer_id: str,
         score: int,
         churn_probability: float,
         score_components: dict,
@@ -47,14 +46,14 @@ class HealthScoreService:
         logger.info(f"Created health score: {health_score.id} for customer {customer_id}")
         return health_score
 
-    async def get_by_id(self, health_score_id: UUID) -> Optional[HealthScore]:
+    async def get_by_id(self, health_score_id: str) -> Optional[HealthScore]:
         """Get health score by ID."""
         result = await self.db.execute(
             select(HealthScore).where(HealthScore.id == health_score_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_latest(self, customer_id: UUID) -> Optional[HealthScore]:
+    async def get_latest(self, customer_id: str) -> Optional[HealthScore]:
         """Get the latest health score for a customer."""
         result = await self.db.execute(
             select(HealthScore)
@@ -66,7 +65,7 @@ class HealthScoreService:
 
     async def get_history(
         self,
-        customer_id: UUID,
+        customer_id: str,
         limit: int = 30,
     ) -> List[HealthScore]:
         """Get health score history for a customer."""
@@ -128,8 +127,8 @@ class HealthScoreService:
 
     async def create_action_item(
         self,
-        customer_id: UUID,
-        health_score_id: UUID,
+        customer_id: str,
+        health_score_id: str,
         title: str,
         description: str = "",
         priority: str = "medium",
@@ -157,7 +156,7 @@ class HealthScoreService:
 
     async def get_action_items(
         self,
-        customer_id: Optional[UUID] = None,
+        customer_id: Optional[str] = None,
         status: Optional[str] = None,
         priority: Optional[str] = None,
         skip: int = 0,
@@ -192,7 +191,7 @@ class HealthScoreService:
 
     async def update_action_item_status(
         self,
-        action_item_id: UUID,
+        action_item_id: str,
         status: str,
     ) -> Optional[ActionItem]:
         """Update action item status."""
@@ -205,10 +204,10 @@ class HealthScoreService:
             return None
 
         item.status = status
-        item.updated_at = datetime.utcnow()
+        item.updated_at = datetime.now(timezone.utc)
 
         if status == "completed":
-            item.completed_at = datetime.utcnow()
+            item.completed_at = datetime.now(timezone.utc)
 
         await self.db.flush()
         await self.db.refresh(item)

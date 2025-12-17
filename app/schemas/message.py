@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from uuid import UUID
 from typing import Optional
 from decimal import Decimal
 
@@ -15,14 +14,14 @@ class MessageBase(BaseModel):
 
 class MessageCreate(MessageBase):
     """Schema for creating a new message."""
-    channel_id: UUID
+    channel_id: str
     message_timestamp: datetime
 
 
 class MessageResponse(MessageBase):
     """Schema for message response."""
-    id: UUID
-    channel_id: UUID
+    id: str
+    channel_id: str
     sentiment_score: Optional[Decimal] = None
     sentiment_label: Optional[str] = None
     sentiment_magnitude: Optional[Decimal] = None

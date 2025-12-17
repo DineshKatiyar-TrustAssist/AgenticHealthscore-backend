@@ -1,5 +1,4 @@
 from typing import Optional
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -101,7 +100,7 @@ async def sync_channels(
 
 @router.get("/{channel_id}", response_model=ChannelResponse)
 async def get_channel(
-    channel_id: UUID,
+    channel_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     """Get a channel by ID."""
@@ -135,7 +134,7 @@ async def get_channel(
 
 @router.put("/{channel_id}", response_model=ChannelResponse)
 async def update_channel(
-    channel_id: UUID,
+    channel_id: str,
     data: ChannelUpdate,
     db: AsyncSession = Depends(get_db),
 ):
@@ -160,7 +159,7 @@ async def update_channel(
 
 @router.put("/{channel_id}/customer", response_model=ChannelResponse)
 async def link_channel_to_customer(
-    channel_id: UUID,
+    channel_id: str,
     data: ChannelLinkCustomer,
     db: AsyncSession = Depends(get_db),
 ):
@@ -192,7 +191,7 @@ async def link_channel_to_customer(
 
 @router.delete("/{channel_id}/customer", response_model=ChannelResponse)
 async def unlink_channel_from_customer(
-    channel_id: UUID,
+    channel_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     """Unlink a channel from its customer."""
@@ -216,7 +215,7 @@ async def unlink_channel_from_customer(
 
 @router.post("/{channel_id}/fetch-history")
 async def fetch_channel_history(
-    channel_id: UUID,
+    channel_id: str,
     days: int = Query(30, ge=1, le=365),
     background_tasks: BackgroundTasks = None,
     db: AsyncSession = Depends(get_db),
@@ -289,7 +288,7 @@ async def fetch_channel_history(
 
 @router.put("/{channel_id}/monitoring")
 async def set_channel_monitoring(
-    channel_id: UUID,
+    channel_id: str,
     is_monitored: bool = True,
     db: AsyncSession = Depends(get_db),
 ):

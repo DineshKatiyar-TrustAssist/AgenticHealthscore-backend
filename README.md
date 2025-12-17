@@ -19,7 +19,7 @@ An AI-powered application that analyzes Slack conversations to generate customer
 
 - **Backend**: Python FastAPI
 - **Frontend**: Next.js 14 with Tailwind CSS
-- **Database**: PostgreSQL
+- **Database**: SQLite
 - **AI**: Google Gemini
 - **Slack**: slack-bolt + Slack SDK
 - **Scheduler**: APScheduler
@@ -51,7 +51,7 @@ AgenticHealthscore/
 │   │   ├── gemini/              # Gemini AI client & prompts
 │   │   ├── scheduler/           # Background jobs (scheduled tasks)
 │   │   └── utils/               # Utility functions (logging, etc.)
-│   ├── alembic/                 # Database migrations
+│   ├── alembic/                 # (Optional) Database migrations - not needed for SQLite
 │   ├── tests/                   # Test files
 │   ├── requirements.txt         # Python dependencies
 │   ├── Dockerfile               # Backend Docker image
@@ -128,15 +128,7 @@ npm run dev
 ```
 
 **Database:**
-```bash
-# Start PostgreSQL
-docker run -d --name healthscore-db \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=healthscore \
-  -p 5432:5432 \
-  postgres:15-alpine
-```
+SQLite database is created automatically on first run. No separate database setup needed.
 
 ## Slack API Setup
 
@@ -230,14 +222,14 @@ Health scores are automatically calculated daily at 2 AM (configurable via `HEAL
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://postgres:postgres@localhost:5432/healthscore` |
+| `DATABASE_URL` | SQLite connection string | `sqlite+aiosqlite:///./healthscore.db` |
 | `GEMINI_MODEL` | Gemini model ID | `gemini-2.0-flash-exp` |
 | `CORS_ORIGINS` | Allowed CORS origins (JSON array) | `["http://localhost:3000"]` |
 | `ANALYSIS_PERIOD_DAYS` | Default analysis period in days | `30` |
 | `MESSAGE_BATCH_SIZE` | Number of messages to process per batch | `50` |
 | `HEALTH_SCORE_CALCULATION_HOUR` | Hour of day for scheduled calculations (0-23) | `2` |
 | `DEBUG` | Enable debug mode | `False` |
-| `SECRET_KEY` | Secret key for application | `change-me-in-production` |
+| `SECRET_KEY` | Secret key for application (optional, not currently used) | `change-me-in-production` |
 
 **Note**: `GOOGLE_API_KEY` and `SLACK_API_TOKEN` are now stored in the database and configured through the Settings page in the UI. They are no longer required in the `.env` file.
 

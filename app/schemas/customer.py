@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from uuid import UUID
 from typing import Optional
 
 
@@ -28,7 +27,7 @@ class CustomerUpdate(BaseModel):
 
 class CustomerResponse(CustomerBase):
     """Schema for customer response."""
-    id: UUID
+    id: str
     created_at: datetime
     updated_at: datetime
     is_active: bool

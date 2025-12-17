@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from uuid import UUID
 from typing import Optional
 from decimal import Decimal
 
@@ -16,8 +15,8 @@ class ScoreComponents(BaseModel):
 
 class HealthScoreResponse(BaseModel):
     """Schema for health score response."""
-    id: UUID
-    customer_id: UUID
+    id: str
+    customer_id: str
     customer_name: Optional[str] = None
     score: int = Field(..., ge=1, le=10)
     churn_probability: Optional[Decimal] = None
@@ -46,7 +45,7 @@ class HealthScoreCalculateRequest(BaseModel):
 class HealthScoreCalculateResponse(BaseModel):
     """Schema for health score calculation response."""
     status: str
-    customer_id: UUID
+    customer_id: str
     health_score: Optional[HealthScoreResponse] = None
     churn_prediction: Optional[dict] = None
     action_items_generated: int = 0

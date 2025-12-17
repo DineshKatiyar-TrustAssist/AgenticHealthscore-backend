@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from uuid import UUID
 from typing import Optional
 
 
@@ -14,21 +13,21 @@ class ChannelBase(BaseModel):
 
 class ChannelCreate(ChannelBase):
     """Schema for creating a new channel."""
-    customer_id: Optional[UUID] = None
+    customer_id: Optional[str] = None
 
 
 class ChannelUpdate(BaseModel):
     """Schema for updating a channel."""
     name: Optional[str] = Field(None, max_length=255)
-    customer_id: Optional[UUID] = None
+    customer_id: Optional[str] = None
     channel_type: Optional[str] = Field(None, max_length=50)
     is_monitored: Optional[bool] = None
 
 
 class ChannelResponse(ChannelBase):
     """Schema for channel response."""
-    id: UUID
-    customer_id: Optional[UUID] = None
+    id: str
+    customer_id: Optional[str] = None
     customer_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -46,4 +45,4 @@ class ChannelListResponse(BaseModel):
 
 class ChannelLinkCustomer(BaseModel):
     """Schema for linking a channel to a customer."""
-    customer_id: UUID
+    customer_id: str

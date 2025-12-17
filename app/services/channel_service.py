@@ -1,6 +1,5 @@
 from typing import List, Optional
-from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +21,7 @@ class ChannelService:
         self,
         slack_channel_id: str,
         name: str,
-        customer_id: Optional[UUID] = None,
+        customer_id: Optional[str] = None,
         channel_type: str = "customer_support",
     ) -> Channel:
         """Create a new channel."""
@@ -38,7 +37,7 @@ class ChannelService:
         logger.info(f"Created channel: {channel.id} ({name})")
         return channel
 
-    async def get_by_id(self, channel_id: UUID) -> Optional[Channel]:
+    async def get_by_id(self, channel_id: str) -> Optional[Channel]:
         """Get channel by ID."""
         result = await self.db.execute(
             select(Channel).where(Channel.id == channel_id)
@@ -52,7 +51,7 @@ class ChannelService:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_customer_id(self, customer_id: UUID) -> List[Channel]:
+    async def get_by_customer_id(self, customer_id: str) -> List[Channel]:
         """Get all channels linked to a customer."""
         result = await self.db.execute(
             select(Channel).where(Channel.customer_id == customer_id)
@@ -84,14 +83,14 @@ class ChannelService:
 
         return list(channels), total
 
-    async def get_by_customer(self, customer_id: UUID) -> List[Channel]:
+    async def get_by_customer(self, customer_id: str) -> List[Channel]:
         """Get all channels for a customer."""
         result = await self.db.execute(
             select(Channel).where(Channel.customer_id == customer_id)
         )
         return list(result.scalars().all())
 
-    async def update(self, channel_id: UUID, data: ChannelUpdate) -> Optional[Channel]:
+    async def update(self, channel_id: str, data: ChannelUpdate) -> Optional[Channel]:
         """Update a channel."""
         channel = await self.get_by_id(channel_id)
         if not channel:
@@ -101,52 +100,52 @@ class ChannelService:
         for field, value in update_data.items():
             setattr(channel, field, value)
 
-        channel.updated_at = datetime.utcnow()
+        channel.updated_at = datetime.now(timezone.utc)
         await self.db.flush()
         await self.db.refresh(channel)
         logger.info(f"Updated channel: {channel_id}")
         return channel
 
-    async def link_customer(self, channel_id: UUID, customer_id: UUID) -> Optional[Channel]:
+    async def link_customer(self, channel_id: str, customer_id: str) -> Optional[Channel]:
         """Link a channel to a customer."""
         channel = await self.get_by_id(channel_id)
         if not channel:
             return None
 
         channel.customer_id = customer_id
-        channel.updated_at = datetime.utcnow()
+        channel.updated_at = datetime.now(timezone.utc)
         await self.db.flush()
         await self.db.refresh(channel)
         logger.info(f"Linked channel {channel_id} to customer {customer_id}")
         return channel
 
-    async def unlink_customer(self, channel_id: UUID) -> Optional[Channel]:
+    async def unlink_customer(self, channel_id: str) -> Optional[Channel]:
         """Unlink a channel from its customer."""
         channel = await self.get_by_id(channel_id)
         if not channel:
             return None
 
         channel.customer_id = None
-        channel.updated_at = datetime.utcnow()
+        channel.updated_at = datetime.now(timezone.utc)
         await self.db.flush()
         await self.db.refresh(channel)
         logger.info(f"Unlinked channel {channel_id} from customer")
         return channel
 
-    async def set_monitoring(self, channel_id: UUID, is_monitored: bool) -> Optional[Channel]:
+    async def set_monitoring(self, channel_id: str, is_monitored: bool) -> Optional[Channel]:
         """Enable or disable monitoring for a channel."""
         channel = await self.get_by_id(channel_id)
         if not channel:
             return None
 
         channel.is_monitored = is_monitored
-        channel.updated_at = datetime.utcnow()
+        channel.updated_at = datetime.now(timezone.utc)
         await self.db.flush()
         await self.db.refresh(channel)
         logger.info(f"Set channel {channel_id} monitoring to {is_monitored}")
         return channel
 
-    async def get_with_message_count(self, channel_id: UUID) -> Optional[dict]:
+    async def get_with_message_count(self, channel_id: str) -> Optional[dict]:
         """Get channel with message count."""
         channel = await self.get_by_id(channel_id)
         if not channel:
@@ -162,7 +161,7 @@ class ChannelService:
             "message_count": message_count,
         }
 
-    async def delete(self, channel_id: UUID) -> bool:
+    async def delete(self, channel_id: str) -> bool:
         """Delete a channel."""
         channel = await self.get_by_id(channel_id)
         if not channel:

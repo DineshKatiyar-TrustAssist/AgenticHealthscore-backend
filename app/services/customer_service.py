@@ -1,6 +1,5 @@
 from typing import List, Optional
-from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -33,7 +32,7 @@ class CustomerService:
         logger.info(f"Created customer: {customer.id}")
         return customer
 
-    async def get_by_id(self, customer_id: UUID) -> Optional[Customer]:
+    async def get_by_id(self, customer_id: str) -> Optional[Customer]:
         """Get customer by ID."""
         result = await self.db.execute(
             select(Customer).where(Customer.id == customer_id)
@@ -79,7 +78,7 @@ class CustomerService:
         )
         return list(result.scalars().all())
 
-    async def update(self, customer_id: UUID, data: CustomerUpdate) -> Optional[Customer]:
+    async def update(self, customer_id: str, data: CustomerUpdate) -> Optional[Customer]:
         """Update a customer."""
         customer = await self.get_by_id(customer_id)
         if not customer:
@@ -89,25 +88,25 @@ class CustomerService:
         for field, value in update_data.items():
             setattr(customer, field, value)
 
-        customer.updated_at = datetime.utcnow()
+        customer.updated_at = datetime.now(timezone.utc)
         await self.db.flush()
         await self.db.refresh(customer)
         logger.info(f"Updated customer: {customer_id}")
         return customer
 
-    async def delete(self, customer_id: UUID) -> bool:
+    async def delete(self, customer_id: str) -> bool:
         """Delete a customer (soft delete by setting is_active=False)."""
         customer = await self.get_by_id(customer_id)
         if not customer:
             return False
 
         customer.is_active = False
-        customer.updated_at = datetime.utcnow()
+        customer.updated_at = datetime.now(timezone.utc)
         await self.db.flush()
         logger.info(f"Deleted customer: {customer_id}")
         return True
 
-    async def get_with_latest_score(self, customer_id: UUID) -> Optional[dict]:
+    async def get_with_latest_score(self, customer_id: str) -> Optional[dict]:
         """Get customer with their latest health score."""
         customer = await self.get_by_id(customer_id)
         if not customer:

@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,52 +16,32 @@ logger = setup_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown events."""
-    # global slack_task
-
     # Startup
-    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}...")
-
-    # Initialize database
-    await init_db()
-    logger.info("Database initialized")
-
-    # Slack bot disabled - using batch-on-demand API processing instead
-    # Real-time bot functionality (Socket Mode) requires SLACK_APP_TOKEN and SLACK_SIGNING_SECRET
-    # For initial deployment, we use only SLACK_API_TOKEN for on-demand message fetching
-    # if settings.SLACK_BOT_TOKEN and settings.SLACK_APP_TOKEN:
-    #     from app.slack.bot import start_slack_bot
-    #
-    #     slack_task = asyncio.create_task(start_slack_bot())
-    #     logger.info("Slack bot task created")
-    # else:
-    #     logger.warning("Slack tokens not configured - bot will not start")
-
-    # Start scheduler
-    from app.scheduler.jobs import start_scheduler
-    start_scheduler()
-    logger.info("Scheduler started")
+    try:
+        logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}...")
+        
+        # Initialize database
+        await init_db()
+        logger.info("Database initialized")
+        
+        # Start scheduler
+        from app.scheduler.jobs import start_scheduler
+        start_scheduler()
+        logger.info("Scheduler started")
+    except Exception as e:
+        logger.error(f"Failed to start application: {str(e)}")
+        raise
 
     yield
 
     # Shutdown
-    logger.info("Shutting down...")
-
-    # Stop Slack bot (disabled)
-    # if slack_task:
-    #     from app.slack.bot import stop_slack_bot
-    #
-    #     await stop_slack_bot()
-    #     slack_task.cancel()
-    #     try:
-    #         await slack_task
-    #     except asyncio.CancelledError:
-    #         pass
-    #     logger.info("Slack bot stopped")
-
-    # Stop scheduler
-    from app.scheduler.jobs import stop_scheduler
-    stop_scheduler()
-    logger.info("Scheduler stopped")
+    try:
+        logger.info("Shutting down...")
+        from app.scheduler.jobs import stop_scheduler
+        stop_scheduler()
+        logger.info("Scheduler stopped")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {str(e)}")
 
 
 # Create FastAPI app

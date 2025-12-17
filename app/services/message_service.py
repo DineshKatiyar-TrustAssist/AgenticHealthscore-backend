@@ -1,10 +1,8 @@
 from typing import List, Optional
-from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.postgresql import insert
 
 from app.models.message import Message
 from app.models.channel import Channel
@@ -21,30 +19,15 @@ class MessageService:
 
     async def create(
         self,
-        channel_id: UUID,
+        channel_id: str,
         slack_message_ts: str,
         content: str,
         message_timestamp: datetime,
         slack_user_id: Optional[str] = None,
         user_type: str = "customer",
-    ) -> Message:
-        """Create a new message."""
-        # Use upsert to handle duplicates
-        stmt = insert(Message).values(
-            channel_id=channel_id,
-            slack_message_ts=slack_message_ts,
-            slack_user_id=slack_user_id,
-            user_type=user_type,
-            content=content,
-            message_timestamp=message_timestamp,
-        ).on_conflict_do_nothing(
-            index_elements=["channel_id", "slack_message_ts"]
-        )
-
-        await self.db.execute(stmt)
-        await self.db.flush()
-
-        # Retrieve the message
+    ) -> Optional[Message]:
+        """Create a new message. Returns existing message if duplicate."""
+        # Check if message already exists (SQLite-compatible upsert)
         result = await self.db.execute(
             select(Message).where(
                 and_(
@@ -53,14 +36,30 @@ class MessageService:
                 )
             )
         )
-        message = result.scalar_one_or_none()
-
-        if message:
-            logger.debug(f"Created/found message: {message.id}")
-
+        existing_message = result.scalar_one_or_none()
+        
+        if existing_message:
+            logger.debug(f"Message already exists: {existing_message.id}")
+            return existing_message
+        
+        # Create new message
+        message = Message(
+            channel_id=channel_id,
+            slack_message_ts=slack_message_ts,
+            slack_user_id=slack_user_id,
+            user_type=user_type,
+            content=content,
+            message_timestamp=message_timestamp,
+        )
+        
+        self.db.add(message)
+        await self.db.flush()
+        await self.db.refresh(message)
+        
+        logger.debug(f"Created new message: {message.id}")
         return message
 
-    async def get_by_id(self, message_id: UUID) -> Optional[Message]:
+    async def get_by_id(self, message_id: str) -> Optional[Message]:
         """Get message by ID."""
         result = await self.db.execute(
             select(Message).where(Message.id == message_id)
@@ -69,7 +68,7 @@ class MessageService:
 
     async def get_channel_messages(
         self,
-        channel_id: UUID,
+        channel_id: str,
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
         limit: int = 1000,
@@ -89,7 +88,7 @@ class MessageService:
 
     async def get_customer_messages(
         self,
-        customer_id: UUID,
+        customer_id: str,
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
         limit: int = 1000,
@@ -126,7 +125,7 @@ class MessageService:
 
     async def update_sentiment(
         self,
-        message_id: UUID,
+        message_id: str,
         sentiment_score: float,
         sentiment_label: str,
         sentiment_magnitude: float,
@@ -199,7 +198,7 @@ class MessageService:
         reactions = metadata.get("reaction_signals", [])
         reactions.append({
             "signal": signal,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         })
         metadata["reaction_signals"] = reactions
         message.metadata_ = metadata
@@ -233,7 +232,7 @@ class MessageService:
         logger.info(f"Bulk created {created} messages")
         return created
 
-    async def get_message_count_by_channel(self, channel_id: UUID) -> int:
+    async def get_message_count_by_channel(self, channel_id: str) -> int:
         """Get message count for a channel."""
         result = await self.db.execute(
             select(func.count(Message.id)).where(Message.channel_id == channel_id)

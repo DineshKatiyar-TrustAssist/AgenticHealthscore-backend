@@ -10,10 +10,15 @@ class Settings(BaseSettings):
     APP_NAME: str = "Customer Health Score API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
+    # SECRET_KEY: Optional - not currently used, but available for future use (sessions, JWT, etc.)
     SECRET_KEY: str = "change-me-in-production"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/healthscore"
+    # SQLite database connection string
+    # For local development: sqlite+aiosqlite:///./healthscore.db
+    # For Cloud Run with Cloud Storage volume: sqlite+aiosqlite:///mnt/data/healthscore.db
+    # (GCS bucket is mounted at /mnt/data via Cloud Run volume mount)
+    DATABASE_URL: str = "sqlite+aiosqlite:///./healthscore.db"
 
     # Google Gemini
     # Note: GOOGLE_API_KEY is now stored in the database (app_config table)

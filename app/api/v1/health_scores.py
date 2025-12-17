@@ -1,5 +1,4 @@
 from typing import Optional
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -22,7 +21,7 @@ router = APIRouter()
 async def list_health_scores(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    customer_id: Optional[UUID] = None,
+    customer_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """List all health scores with pagination. Shows only latest score per customer."""
@@ -99,7 +98,7 @@ async def list_health_scores(
 
 @router.get("/{health_score_id}", response_model=HealthScoreResponse)
 async def get_health_score(
-    health_score_id: UUID,
+    health_score_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     """Get a health score by ID."""

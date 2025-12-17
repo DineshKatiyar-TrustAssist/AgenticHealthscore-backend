@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from datetime import datetime, date
-from uuid import UUID
 from typing import Optional, Literal
 
 
@@ -19,8 +18,8 @@ class ActionItemBase(BaseModel):
 
 class ActionItemCreate(ActionItemBase):
     """Schema for creating a new action item."""
-    customer_id: UUID
-    health_score_id: Optional[UUID] = None
+    customer_id: str
+    health_score_id: Optional[str] = None
     due_date: Optional[date] = None
     assigned_to: Optional[str] = Field(None, max_length=255)
     impact_score: Optional[int] = Field(None, ge=1, le=10)
@@ -45,9 +44,9 @@ class ActionItemStatusUpdate(BaseModel):
 
 class ActionItemResponse(ActionItemBase):
     """Schema for action item response."""
-    id: UUID
-    customer_id: UUID
-    health_score_id: Optional[UUID] = None
+    id: str
+    customer_id: str
+    health_score_id: Optional[str] = None
     status: StatusLevel
     due_date: Optional[date] = None
     assigned_to: Optional[str] = None

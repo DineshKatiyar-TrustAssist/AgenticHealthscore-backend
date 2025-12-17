@@ -1,5 +1,4 @@
 from typing import Optional
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +19,7 @@ router = APIRouter()
 async def list_action_items(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    customer_id: Optional[UUID] = None,
+    customer_id: Optional[str] = None,
     status: Optional[str] = None,
     priority: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
@@ -71,7 +70,7 @@ async def list_action_items(
 
 @router.get("/{action_item_id}", response_model=ActionItemResponse)
 async def get_action_item(
-    action_item_id: UUID,
+    action_item_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     """Get an action item by ID."""
@@ -110,7 +109,7 @@ async def get_action_item(
 
 @router.patch("/{action_item_id}/status", response_model=ActionItemResponse)
 async def update_action_item_status(
-    action_item_id: UUID,
+    action_item_id: str,
     data: ActionItemStatusUpdate,
     db: AsyncSession = Depends(get_db),
 ):
