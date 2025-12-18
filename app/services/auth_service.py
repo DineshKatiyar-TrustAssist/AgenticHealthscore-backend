@@ -322,3 +322,94 @@ class AuthService:
         result = await self.db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
+    async def request_password_reset(self, email: str) -> None:
+        """
+        Request password reset for a user.
+
+        Args:
+            email: User's email address
+
+        Raises:
+            ValueError: If user not found or not verified
+        """
+        user = await self.get_user_by_email(email)
+        if not user:
+            # Don't reveal if user exists for security
+            return
+
+        if user.auth_provider != AuthProvider.EMAIL:
+            return  # OAuth users don't have passwords
+
+        if not user.is_verified:
+            return  # Don't reveal if user is not verified
+
+        # Generate password reset token
+        token = await self.generate_verification_token(
+            user.id, TokenType.PASSWORD_RESET
+        )
+
+        # Send password reset email
+        try:
+            await self.email_service.send_password_reset_email(user.email, token.token)
+        except Exception:
+            # Log error but don't reveal to user
+            pass
+
+    async def reset_password(self, token: str, new_password: str) -> User:
+        """
+        Reset password using reset token.
+
+        Args:
+            token: Password reset token
+            new_password: New password
+
+        Returns:
+            User object
+
+        Raises:
+            ValueError: If token is invalid, expired, or already used
+        """
+        if len(new_password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+
+        # Find token
+        result = await self.db.execute(
+            select(VerificationToken).where(
+                VerificationToken.token == token,
+                VerificationToken.token_type == TokenType.PASSWORD_RESET,
+            )
+        )
+        reset_token = result.scalar_one_or_none()
+
+        if not reset_token:
+            raise ValueError("Invalid password reset token")
+
+        if reset_token.used_at:
+            raise ValueError("Password reset token has already been used")
+
+        # Check expiration
+        expires_at = reset_token.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if expires_at < datetime.now(timezone.utc):
+            raise ValueError("Password reset token has expired")
+
+        # Get user
+        user = await self.get_user_by_id(reset_token.user_id)
+        if not user:
+            raise ValueError("User not found")
+
+        if user.auth_provider != AuthProvider.EMAIL:
+            raise ValueError("Password can only be reset for email-based users")
+
+        # Update password and mark token as used
+        user.password_hash = self._hash_password(new_password)
+        user.updated_at = datetime.now(timezone.utc)
+        reset_token.used_at = datetime.now(timezone.utc)
+
+        await self.db.commit()
+        await self.db.refresh(user)
+
+        return user
+

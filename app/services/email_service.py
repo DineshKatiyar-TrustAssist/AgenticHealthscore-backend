@@ -211,3 +211,43 @@ class EmailService:
             text_body,
         )
 
+    async def send_password_reset_email(self, user_email: str, token: str) -> bool:
+        """Send password reset link to user."""
+        reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
+
+        html_template = Template("""
+        <html>
+          <body>
+            <h2>Reset Your Password</h2>
+            <p>You requested to reset your password. Click the link below to reset it:</p>
+            <p><a href="{{ reset_url }}">Reset Password</a></p>
+            <p>Or copy and paste this link into your browser:</p>
+            <p>{{ reset_url }}</p>
+            <p>This link will expire in 1 hour.</p>
+            <p>If you didn't request a password reset, please ignore this email.</p>
+          </body>
+        </html>
+        """)
+
+        text_template = Template("""
+        Reset Your Password
+
+        You requested to reset your password. Please visit the link below:
+
+        {{ reset_url }}
+
+        This link will expire in 1 hour.
+
+        If you didn't request a password reset, please ignore this email.
+        """)
+
+        html_body = html_template.render(reset_url=reset_url)
+        text_body = text_template.render(reset_url=reset_url)
+
+        return await self._send_email(
+            user_email,
+            "Reset Your Password",
+            html_body,
+            text_body,
+        )
+

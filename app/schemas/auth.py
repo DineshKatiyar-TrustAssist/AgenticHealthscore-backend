@@ -85,3 +85,28 @@ class UserResponse(BaseModel):
 
     user: UserInfo
 
+
+class PasswordResetRequest(BaseModel):
+    """Schema for password reset request."""
+
+    email: EmailStr = Field(..., description="User's email address")
+
+
+class PasswordResetResponse(BaseModel):
+    """Schema for password reset request response."""
+
+    message: str
+
+
+class ResetPasswordRequest(BaseModel):
+    """Schema for resetting password with token."""
+
+    token: str = Field(..., description="Password reset token from email")
+    password: str = Field(..., min_length=8, description="New password (minimum 8 characters)")
+
+
+class ResetPasswordResponse(BaseModel):
+    """Schema for reset password response."""
+
+    message: str
+

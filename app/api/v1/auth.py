@@ -19,6 +19,10 @@ from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
     UserResponse,
+    PasswordResetRequest,
+    PasswordResetResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
 )
 from app.utils.jwt import create_access_token
 from app.config import settings
@@ -230,6 +234,44 @@ async def oauth_callback(
     frontend_url = f"{settings.FRONTEND_URL}/auth/oauth/callback?token={access_token}&provider={provider}"
 
     return RedirectResponse(url=frontend_url)
+
+
+@router.post("/password-reset/request", response_model=PasswordResetResponse)
+async def request_password_reset(
+    request: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request password reset email."""
+    auth_service = AuthService(db)
+    try:
+        await auth_service.request_password_reset(request.email)
+        return PasswordResetResponse(
+            message="If the email exists and is verified, a password reset link has been sent."
+        )
+    except Exception:
+        # Don't reveal if user exists for security
+        return PasswordResetResponse(
+            message="If the email exists and is verified, a password reset link has been sent."
+        )
+
+
+@router.post("/password-reset/reset", response_model=ResetPasswordResponse)
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset password using reset token."""
+    auth_service = AuthService(db)
+    try:
+        await auth_service.reset_password(request.token, request.password)
+        return ResetPasswordResponse(
+            message="Password reset successfully. You can now log in with your new password."
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
 
 @router.get("/me", response_model=UserResponse)
