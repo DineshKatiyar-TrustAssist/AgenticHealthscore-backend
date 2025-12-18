@@ -9,6 +9,9 @@ from app.models.user import User, AuthProvider
 from app.models.verification_token import VerificationToken, TokenType
 from app.services.email_service import EmailService
 from app.config import settings
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class AuthService:
@@ -335,25 +338,34 @@ class AuthService:
         user = await self.get_user_by_email(email)
         if not user:
             # Don't reveal if user exists for security
+            logger.info(f"Password reset requested for non-existent email: {email}")
             return
 
         if user.auth_provider != AuthProvider.EMAIL:
+            logger.info(f"Password reset requested for OAuth user: {email}")
             return  # OAuth users don't have passwords
 
         if not user.is_verified:
+            logger.info(f"Password reset requested for unverified user: {email}")
             return  # Don't reveal if user is not verified
 
         # Generate password reset token
         token = await self.generate_verification_token(
             user.id, TokenType.PASSWORD_RESET
         )
+        logger.info(f"Generated password reset token for user: {email}")
 
         # Send password reset email
         try:
-            await self.email_service.send_password_reset_email(user.email, token.token)
-        except Exception:
-            # Log error but don't reveal to user
-            pass
+            success = await self.email_service.send_password_reset_email(user.email, token.token)
+            if success:
+                logger.info(f"Password reset email sent successfully to: {email}")
+            else:
+                logger.error(f"Failed to send password reset email to: {email}")
+        except Exception as e:
+            # Log error but don't reveal to user for security
+            logger.error(f"Error sending password reset email to {email}: {str(e)}", exc_info=True)
+            raise  # Re-raise to allow caller to handle if needed
 
     async def reset_password(self, token: str, new_password: str) -> User:
         """
