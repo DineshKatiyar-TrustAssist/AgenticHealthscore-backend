@@ -14,10 +14,19 @@ logger = setup_logger(__name__)
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to log all incoming requests."""
     async def dispatch(self, request: Request, call_next):
-        logger.info(f"Incoming request: {request.method} {request.url.path}")
-        response = await call_next(request)
-        logger.info(f"Response status: {response.status_code} for {request.method} {request.url.path}")
-        return response
+        import sys
+        # Force flush to ensure logs appear immediately
+        print(f"REQUEST: {request.method} {request.url.path}", flush=True, file=sys.stdout)
+        logger.info(f"Incoming request: {request.method} {request.url.path} from {request.client.host if request.client else 'unknown'}")
+        try:
+            response = await call_next(request)
+            logger.info(f"Response status: {response.status_code} for {request.method} {request.url.path}")
+            print(f"RESPONSE: {response.status_code} for {request.method} {request.url.path}", flush=True, file=sys.stdout)
+            return response
+        except Exception as e:
+            logger.error(f"Error processing request {request.method} {request.url.path}: {str(e)}", exc_info=True)
+            print(f"ERROR: {request.method} {request.url.path}: {str(e)}", flush=True, file=sys.stdout)
+            raise
 
 
 @asynccontextmanager
@@ -103,6 +112,15 @@ async def health_check():
         "status": "healthy",
         "version": settings.APP_VERSION,
     }
+
+
+@app.post("/api/v1/test-logging")
+async def test_logging():
+    """Test endpoint to verify logging is working."""
+    logger.info("TEST: Logging test endpoint called")
+    logger.warning("TEST: This is a warning log")
+    logger.error("TEST: This is an error log (test only)")
+    return {"message": "Logging test successful", "check_logs": True}
 
 
 @app.options("/{full_path:path}")
