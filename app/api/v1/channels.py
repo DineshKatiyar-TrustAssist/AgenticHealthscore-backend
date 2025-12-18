@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
@@ -217,7 +217,6 @@ async def unlink_channel_from_customer(
 async def fetch_channel_history(
     channel_id: str,
     days: int = Query(30, ge=1, le=365),
-    background_tasks: BackgroundTasks = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Fetch historical messages from a Slack channel."""

@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -131,7 +131,6 @@ async def get_health_score(
 
 @router.post("/calculate-all")
 async def calculate_all_health_scores(
-    background_tasks: BackgroundTasks,
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
 ):

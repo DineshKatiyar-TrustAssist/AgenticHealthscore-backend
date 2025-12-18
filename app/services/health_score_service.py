@@ -98,33 +98,6 @@ class HealthScoreService:
 
         return list(scores), total
 
-    async def calculate_for_channel(self, slack_channel_id: str) -> Optional[dict]:
-        """Calculate health score for a channel (called from Slack command)."""
-        from app.agents.orchestrator import CustomerHealthOrchestrator
-
-        # Find the channel and its customer
-        result = await self.db.execute(
-            select(Channel).where(Channel.slack_channel_id == slack_channel_id)
-        )
-        channel = result.scalar_one_or_none()
-
-        if not channel or not channel.customer_id:
-            return None
-
-        # Run the orchestrator
-        orchestrator = CustomerHealthOrchestrator(self.db)
-        analysis_result = await orchestrator.analyze_customer(channel.customer_id)
-
-        if analysis_result.get("status") == "success":
-            return {
-                "score": analysis_result["health_score"]["score"],
-                "churn_probability": analysis_result["churn_prediction"]["churn_probability"],
-                "messages_analyzed": analysis_result["messages_analyzed"],
-                "reasoning": analysis_result["health_score"]["reasoning"],
-            }
-
-        return None
-
     async def create_action_item(
         self,
         customer_id: str,

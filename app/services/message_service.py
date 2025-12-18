@@ -110,19 +110,6 @@ class MessageService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_unanalyzed_messages(
-        self,
-        limit: int = 100,
-    ) -> List[Message]:
-        """Get messages that haven't been analyzed for sentiment."""
-        result = await self.db.execute(
-            select(Message)
-            .where(Message.is_analyzed == False)
-            .order_by(Message.created_at.asc())
-            .limit(limit)
-        )
-        return list(result.scalars().all())
-
     async def update_sentiment(
         self,
         message_id: str,
@@ -164,47 +151,6 @@ class MessageService:
         await self.db.flush()
         logger.info(f"Updated sentiment for {updated} messages")
         return updated
-
-    async def add_reaction_signal(
-        self,
-        channel_slack_id: str,
-        message_ts: str,
-        signal: str,
-    ) -> bool:
-        """Add a reaction signal to message metadata."""
-        # Find the channel first
-        channel_result = await self.db.execute(
-            select(Channel).where(Channel.slack_channel_id == channel_slack_id)
-        )
-        channel = channel_result.scalar_one_or_none()
-        if not channel:
-            return False
-
-        # Find the message
-        result = await self.db.execute(
-            select(Message).where(
-                and_(
-                    Message.channel_id == channel.id,
-                    Message.slack_message_ts == message_ts,
-                )
-            )
-        )
-        message = result.scalar_one_or_none()
-        if not message:
-            return False
-
-        # Update metadata with reaction signal
-        metadata = message.metadata_ or {}
-        reactions = metadata.get("reaction_signals", [])
-        reactions.append({
-            "signal": signal,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
-        metadata["reaction_signals"] = reactions
-        message.metadata_ = metadata
-
-        await self.db.flush()
-        return True
 
     async def bulk_create(
         self,

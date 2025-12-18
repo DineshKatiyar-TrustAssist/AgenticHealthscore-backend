@@ -9,9 +9,6 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Slack bot task reference (disabled for batch-on-demand mode)
-# slack_task = None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
