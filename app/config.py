@@ -63,7 +63,17 @@ class Settings(BaseSettings):
         @classmethod
         def parse_env_var(cls, field_name: str, raw_val: str):
             if field_name == "CORS_ORIGINS":
-                return json.loads(raw_val)
+                try:
+                    # Try parsing as JSON first
+                    parsed = json.loads(raw_val)
+                    if isinstance(parsed, list):
+                        return parsed
+                    # If it's a string, try splitting by comma
+                    if isinstance(parsed, str):
+                        return [origin.strip() for origin in parsed.split(",")]
+                except (json.JSONDecodeError, TypeError):
+                    # If JSON parsing fails, try splitting by comma
+                    return [origin.strip() for origin in raw_val.split(",") if origin.strip()]
             return raw_val
 
 

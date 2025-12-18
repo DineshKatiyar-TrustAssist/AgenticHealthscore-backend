@@ -50,9 +50,19 @@ app = FastAPI(
 )
 
 # CORS middleware
+# Ensure CORS_ORIGINS is a list
+cors_origins = settings.CORS_ORIGINS
+if isinstance(cors_origins, str):
+    cors_origins = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
+elif not isinstance(cors_origins, list):
+    cors_origins = list(cors_origins) if cors_origins else ["http://localhost:3000"]
+
+logger.info(f"CORS allowed origins: {cors_origins}")
+logger.info(f"CORS origins type: {type(cors_origins)}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,3 +90,9 @@ async def health_check():
         "status": "healthy",
         "version": settings.APP_VERSION,
     }
+
+
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """Handle OPTIONS requests for CORS preflight."""
+    return {"status": "ok"}
