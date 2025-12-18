@@ -7,9 +7,6 @@ from datetime import datetime
 from jinja2 import Template
 from app.services.app_config_service import AppConfigService
 from app.config import settings
-from app.utils.logger import setup_logger
-
-logger = setup_logger(__name__)
 
 
 class EmailService:
@@ -67,16 +64,11 @@ class EmailService:
         """Send an email via SMTP."""
         smtp_config = await self._get_smtp_config()
         if not smtp_config:
-            error_msg = (
+            raise ValueError(
                 "SMTP configuration not found. Please configure SMTP settings via "
                 "environment variables (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, "
                 "SMTP_FROM_EMAIL, SMTP_USE_TLS) in Cloud Run or in the database."
             )
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
-        logger.info(f"Attempting to send email to {to_email} with subject: {subject}")
-        logger.debug(f"SMTP config: host={smtp_config['host']}, port={smtp_config['port']}, from={smtp_config['from_email']}")
 
         try:
             message = MIMEMultipart("alternative")
@@ -108,12 +100,9 @@ class EmailService:
                     password=smtp_config["password"],
                     start_tls=smtp_config["start_tls"],
                 )
-            logger.info(f"Email sent successfully to {to_email}")
             return True
         except Exception as e:
-            error_msg = f"Failed to send email to {to_email}: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            raise ValueError(error_msg)
+            raise ValueError(f"Failed to send email: {str(e)}")
 
     async def send_verification_email(self, user_email: str, token: str) -> bool:
         """
@@ -225,7 +214,6 @@ class EmailService:
     async def send_password_reset_email(self, user_email: str, token: str) -> bool:
         """Send password reset link to user."""
         reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
-        logger.info(f"Preparing password reset email for {user_email}, reset URL: {reset_url}")
 
         html_template = Template("""
         <html>

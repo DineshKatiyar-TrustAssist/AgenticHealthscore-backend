@@ -26,9 +26,6 @@ from app.schemas.auth import (
 )
 from app.utils.jwt import create_access_token
 from app.config import settings
-from app.utils.logger import setup_logger
-
-logger = setup_logger(__name__)
 
 router = APIRouter()
 
@@ -245,17 +242,14 @@ async def request_password_reset(
     db: AsyncSession = Depends(get_db),
 ):
     """Request password reset email."""
-    logger.info(f"Password reset request received for email: {request.email}")
     auth_service = AuthService(db)
     try:
         await auth_service.request_password_reset(request.email)
-        logger.info(f"Password reset request processed successfully for: {request.email}")
         return PasswordResetResponse(
             message="If the email exists and is verified, a password reset link has been sent."
         )
-    except Exception as e:
-        # Log error for debugging but don't reveal to user for security
-        logger.error(f"Error in password reset request for {request.email}: {str(e)}", exc_info=True)
+    except Exception:
+        # Don't reveal if user exists for security
         return PasswordResetResponse(
             message="If the email exists and is verified, a password reset link has been sent."
         )
