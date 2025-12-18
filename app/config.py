@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     MESSAGE_BATCH_SIZE: int = 50
     HEALTH_SCORE_CALCULATION_HOUR: int = 2  # 2 AM daily
 
+    # Authentication Configuration
+    VERIFICATION_TOKEN_EXPIRY_HOURS: int = 1
+    JWT_SECRET_KEY: str = "change-me-in-production-jwt"  # Should use SECRET_KEY or separate
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
+    ADMIN_NOTIFICATION_EMAIL: str = "dinesh.katiyar@trustassist.ai"
+    FRONTEND_URL: str = "http://localhost:3000"
+    BACKEND_URL: str = "http://localhost:8000"  # Backend URL for OAuth callbacks
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

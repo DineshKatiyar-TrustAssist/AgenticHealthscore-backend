@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
+# Includes: FastAPI, SQLAlchemy, authentication (JWT, bcrypt), email (aiosmtplib), OAuth (authlib)
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
@@ -41,4 +42,8 @@ EXPOSE 8080
 
 # Run the application with production settings
 # Use PORT environment variable for Cloud Run compatibility
+# Note: Ensure environment variables are set for:
+#   - JWT_SECRET_KEY (authentication)
+#   - SMTP settings (email verification) - can be configured in database
+#   - OAuth credentials (Google, etc.) - can be configured in database
 CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 2

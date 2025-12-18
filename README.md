@@ -4,6 +4,12 @@ An AI-powered application that analyzes Slack conversations to generate customer
 
 ## Features
 
+- **Authentication**: Complete email-based and OAuth (Google) authentication system
+  - Email signup with verification
+  - Secure password management with bcrypt hashing
+  - OAuth 2.0 support (Google)
+  - JWT-based session management
+  - Route protection and user context
 - **Slack Integration**: Batch-on-demand message processing via Slack API
 - **Customer Management**: Create, update, and delete customers with Slack user linking
 - **Channel Management**: Sync and monitor Slack channels, link channels to customers
@@ -33,12 +39,13 @@ AgenticHealthscore/
 │   │   ├── main.py              # FastAPI entry point
 │   │   ├── config.py            # Settings & environment variables
 │   │   ├── database.py          # Database connection & session management
-│   │   ├── models/              # SQLAlchemy models (Customer, Channel, HealthScore, etc.)
-│   │   ├── schemas/             # Pydantic schemas for API validation
+│   │   ├── models/              # SQLAlchemy models (Customer, Channel, HealthScore, User, VerificationToken, etc.)
+│   │   ├── schemas/             # Pydantic schemas for API validation (including auth schemas)
 │   │   ├── api/
-│   │   │   ├── deps.py          # API dependencies
+│   │   │   ├── deps.py          # API dependencies (including auth dependencies)
 │   │   │   └── v1/              # API v1 endpoints
 │   │   │       ├── router.py    # Main API router
+│   │   │       ├── auth.py      # Authentication endpoints (signup, login, verify, OAuth)
 │   │   │       ├── customers.py # Customer endpoints
 │   │   │       ├── channels.py  # Channel endpoints
 │   │   │       ├── health_scores.py # Health score endpoints
@@ -46,6 +53,11 @@ AgenticHealthscore/
 │   │   │       ├── dashboard.py # Dashboard endpoints
 │   │   │       └── settings.py  # Settings endpoints
 │   │   ├── services/            # Business logic services
+│   │   │   ├── auth_service.py  # Authentication service (user management, password hashing)
+│   │   │   ├── email_service.py # Email service (verification emails, notifications)
+│   │   │   └── oauth_service.py # OAuth service (Google OAuth integration)
+│   │   ├── utils/
+│   │   │   └── jwt.py           # JWT token utilities
 │   │   ├── slack/               # Slack integration (API client, bot)
 │   │   ├── agents/              # AI agents (sentiment, health score, churn, action items)
 │   │   ├── gemini/              # Gemini AI client & prompts
@@ -59,14 +71,23 @@ AgenticHealthscore/
 ├── frontend/
 │   ├── app/                     # Next.js 14 App Router pages
 │   │   ├── page.tsx             # Dashboard page
+│   │   ├── auth/                # Authentication pages
+│   │   │   ├── login/           # Login page
+│   │   │   ├── signup/          # Signup page
+│   │   │   ├── verify/          # Email verification page
+│   │   │   ├── set-password/   # Password setup page
+│   │   │   └── oauth/           # OAuth callback page
 │   │   ├── customers/           # Customer management pages
 │   │   ├── channels/            # Channel management page
 │   │   ├── health-scores/       # Health scores page
 │   │   ├── action-items/        # Action items page
 │   │   ├── trends/              # Trends page
 │   │   ├── settings/            # Settings page
-│   │   └── layout.tsx           # Root layout with Sidebar & Header
+│   │   └── layout.tsx           # Root layout with Sidebar & Header (includes AuthProvider)
 │   ├── components/
+│   │   ├── auth/                # Authentication components
+│   │   │   ├── AuthProvider.tsx # Auth context provider
+│   │   │   └── AuthGuard.tsx    # Route protection component
 │   │   ├── layout/              # Layout components (Sidebar, Header)
 │   │   ├── dashboard/           # Dashboard-specific components
 │   │   └── ui/                  # Reusable UI components
@@ -89,6 +110,8 @@ AgenticHealthscore/
 - Docker and Docker Compose
 - Google API Key (for Gemini) - can be configured in Settings page
 - Slack API Token (bot token) - can be configured in Settings page
+- SMTP Configuration (for email verification) - can be configured via setup script or database
+- OAuth Credentials (optional, for Google OAuth) - can be configured in database
 
 ### 1. Clone and Configure
 
@@ -151,6 +174,68 @@ SQLite database is created automatically on first run. No separate database setu
 - API keys (Slack and Gemini) are stored in the database and can be configured through the Settings page in the UI
 - This deployment uses batch-on-demand processing via API calls. Real-time event processing (Socket Mode) is disabled for initial deployment
 
+## Authentication Setup
+
+### Email-Based Authentication
+
+1. **Configure SMTP Settings**: Use the setup script to configure SMTP for email verification:
+   ```bash
+   cd backend
+   python scripts/setup_smtp.py
+   ```
+   Or configure directly in the database via `AppConfig`:
+   - `SMTP_HOST`: SMTP server hostname (e.g., `smtp.gmail.com`)
+   - `SMTP_PORT`: SMTP port (e.g., `587` for STARTTLS or `465` for SSL)
+   - `SMTP_USER`: SMTP username (your email)
+   - `SMTP_PASSWORD`: SMTP password (for Gmail, use an App Password)
+   - `SMTP_FROM_EMAIL`: Sender email address
+   - `SMTP_USE_TLS`: `true` for STARTTLS (port 587) or SSL (port 465)
+
+2. **User Flow**:
+   - User signs up with email address
+   - Verification email sent with secure, time-limited link (expires in 1 hour)
+   - User clicks link to verify email
+   - User sets password
+   - User can now log in
+
+3. **Admin Notifications**: New user signups trigger notification emails to the admin email configured in `ADMIN_NOTIFICATION_EMAIL`.
+
+### OAuth Authentication (Google)
+
+1. **Configure OAuth Credentials**:
+   - Create OAuth 2.0 credentials in [Google Cloud Console](https://console.cloud.google.com/)
+   - Add authorized redirect URI: `http://localhost:8000/api/v1/auth/oauth/google/callback` (for development)
+   - Store credentials in database via `AppConfig`:
+     - `GOOGLE_OAUTH_CLIENT_ID`: Your Google OAuth client ID
+     - `GOOGLE_OAUTH_CLIENT_SECRET`: Your Google OAuth client secret
+
+2. **User Flow**:
+   - User clicks "Sign in with Google"
+   - Redirected to Google for authentication
+   - User grants permissions
+   - Redirected back to application with JWT token
+   - User is automatically logged in (no email verification or password required)
+
+### Authentication Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/signup` | Sign up with email address |
+| GET | `/api/v1/auth/verify` | Verify email address with token |
+| POST | `/api/v1/auth/set-password` | Set password after email verification |
+| POST | `/api/v1/auth/login` | Login with email and password |
+| GET | `/api/v1/auth/oauth/{provider}` | Initiate OAuth flow (e.g., `google`) |
+| GET | `/api/v1/auth/oauth/{provider}/callback` | OAuth callback endpoint |
+| GET | `/api/v1/auth/me` | Get current authenticated user |
+
+### Security Features
+
+- **Password Hashing**: Bcrypt with 12 rounds, handles passwords > 72 bytes via SHA256 pre-hashing
+- **JWT Tokens**: Secure session management with configurable expiration (default: 24 hours)
+- **Email Verification**: Single-use, time-limited tokens (1 hour expiry)
+- **OAuth Integration**: Secure OAuth 2.0 flow with state parameter for CSRF protection
+- **Route Protection**: Frontend route guards and backend JWT validation
+
 ## API Endpoints
 
 ### Customers
@@ -202,6 +287,17 @@ SQLite database is created automatically on first run. No separate database setu
 | GET | `/api/v1/settings` | Get application settings |
 | PUT | `/api/v1/settings` | Update API keys (Slack and Gemini) |
 
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/signup` | Sign up with email address |
+| GET | `/api/v1/auth/verify` | Verify email address with token |
+| POST | `/api/v1/auth/set-password` | Set password after email verification |
+| POST | `/api/v1/auth/login` | Login with email and password |
+| GET | `/api/v1/auth/oauth/{provider}` | Initiate OAuth flow (e.g., `google`) |
+| GET | `/api/v1/auth/oauth/{provider}/callback` | OAuth callback endpoint |
+| GET | `/api/v1/auth/me` | Get current authenticated user (requires authentication) |
+
 ## Agentic Workflow
 
 The system uses a multi-agent architecture:
@@ -238,8 +334,18 @@ Health scores are automatically calculated daily at 2 AM (configurable via `HEAL
 | `HEALTH_SCORE_CALCULATION_HOUR` | Hour of day for scheduled calculations (0-23) | `2` |
 | `DEBUG` | Enable debug mode | `False` |
 | `SECRET_KEY` | Secret key for application | `change-me-in-production` |
+| `JWT_SECRET_KEY` | Secret key for JWT token signing | `change-me-in-production-jwt` |
+| `JWT_ALGORITHM` | JWT algorithm | `HS256` |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | JWT token expiration in minutes | `1440` (24 hours) |
+| `VERIFICATION_TOKEN_EXPIRY_HOURS` | Email verification token expiration in hours | `1` |
+| `ADMIN_NOTIFICATION_EMAIL` | Email address for new user signup notifications | `dinesh.katiyar@trustassist.ai` |
+| `FRONTEND_URL` | Frontend URL for email links and redirects | `http://localhost:3000` |
+| `BACKEND_URL` | Backend URL for OAuth callbacks | `http://localhost:8000` |
 
-**Note**: `GOOGLE_API_KEY` and `SLACK_API_TOKEN` are now stored in the database and configured through the Settings page in the UI. They are no longer required in the `.env` file.
+**Note**: 
+- `GOOGLE_API_KEY` and `SLACK_API_TOKEN` are stored in the database and configured through the Settings page in the UI
+- SMTP settings (for email verification) are stored in the database and can be configured via `scripts/setup_smtp.py` or directly in the database
+- OAuth credentials (Google) are stored in the database and can be configured via `AppConfig` service
 
 ## Cloud Run Deployment
 

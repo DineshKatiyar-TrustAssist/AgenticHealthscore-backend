@@ -140,3 +140,16 @@ logs/
 *.bak
 *.swp
 
+# Authentication & Security
+# JWT secrets and tokens (should be in .env)
+*.jwt
+*.token
+
+# Email templates (if created as separate files)
+# Currently using inline templates, but if externalized:
+# email_templates/
+
+# Scripts output
+scripts/__pycache__/
+scripts/*.pyc
+

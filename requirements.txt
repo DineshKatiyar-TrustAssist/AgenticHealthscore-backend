@@ -1,33 +1,67 @@
-# FastAPI and Server
+# ============================================================================
+# Core Framework & Server
+# ============================================================================
 fastapi>=0.115.0
 uvicorn[standard]>=0.34.0
 python-multipart>=0.0.9
 
-# Database
+# ============================================================================
+# Database & ORM
+# ============================================================================
 sqlalchemy[asyncio]>=2.0.25
 aiosqlite>=0.19.0
 
-# Pydantic
+# ============================================================================
+# Data Validation & Serialization
+# ============================================================================
 pydantic>=2.11.0
 pydantic-settings>=2.5.2
 email-validator>=2.1.0
 
+# ============================================================================
+# Authentication & Security
+# - JWT tokens for session management
+# - Password hashing with bcrypt
+# - OAuth 2.0 support (Google, etc.)
+# ============================================================================
+python-jose[cryptography]>=3.3.0  # JWT encoding/decoding
+passlib[bcrypt]>=1.7.4              # Password hashing framework
+bcrypt>=4.0.1                      # Bcrypt implementation
+authlib>=1.2.0                     # OAuth 2.0 client library
+
+# ============================================================================
+# Email Services
+# - SMTP email sending for verification and notifications
+# - Template rendering for email content
+# ============================================================================
+aiosmtplib>=3.0.0                  # Async SMTP client
+jinja2>=3.1.2                      # Email template engine
+
+# ============================================================================
+# External Integrations
+# ============================================================================
 # Slack
 slack-bolt>=1.18.1
 slack-sdk>=3.27.1
 aiohttp>=3.9.0
 
-# Google Gemini
+# Google Gemini AI
 google-genai>=1.45.0
 
-# Background Tasks
+# ============================================================================
+# Background Tasks & Scheduling
+# ============================================================================
 apscheduler>=3.10.4
 
+# ============================================================================
 # Utilities
-python-dotenv>=1.0.0
-httpx>=0.27.0
+# ============================================================================
+python-dotenv>=1.0.0               # Environment variable management
+httpx>=0.27.0                      # HTTP client for OAuth and external APIs
 
-# Development
+# ============================================================================
+# Development Tools
+# ============================================================================
 pytest>=7.4.4
 pytest-asyncio>=0.23.3
 black>=24.0.0
