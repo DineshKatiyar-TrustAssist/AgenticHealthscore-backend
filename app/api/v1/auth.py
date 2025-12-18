@@ -245,9 +245,11 @@ async def request_password_reset(
     db: AsyncSession = Depends(get_db),
 ):
     """Request password reset email."""
+    logger.info(f"Password reset request received for email: {request.email}")
     auth_service = AuthService(db)
     try:
         await auth_service.request_password_reset(request.email)
+        logger.info(f"Password reset request processed successfully for: {request.email}")
         return PasswordResetResponse(
             message="If the email exists and is verified, a password reset link has been sent."
         )

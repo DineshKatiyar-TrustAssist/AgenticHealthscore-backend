@@ -361,11 +361,12 @@ class AuthService:
             if success:
                 logger.info(f"Password reset email sent successfully to: {email}")
             else:
-                logger.error(f"Failed to send password reset email to: {email}")
+                logger.error(f"Failed to send password reset email to: {email} (email service returned False)")
         except Exception as e:
             # Log error but don't reveal to user for security
             logger.error(f"Error sending password reset email to {email}: {str(e)}", exc_info=True)
-            raise  # Re-raise to allow caller to handle if needed
+            # Don't re-raise - we want to return success message to user for security
+            # The error is logged for debugging
 
     async def reset_password(self, token: str, new_password: str) -> User:
         """

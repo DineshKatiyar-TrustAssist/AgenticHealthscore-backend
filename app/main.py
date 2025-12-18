@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.database import init_db
@@ -8,6 +9,15 @@ from app.api.v1.router import api_router
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    """Middleware to log all incoming requests."""
+    async def dispatch(self, request: Request, call_next):
+        logger.info(f"Incoming request: {request.method} {request.url.path}")
+        response = await call_next(request)
+        logger.info(f"Response status: {response.status_code} for {request.method} {request.url.path}")
+        return response
 
 
 @asynccontextmanager
@@ -48,6 +58,9 @@ app = FastAPI(
     version=settings.APP_VERSION,
     lifespan=lifespan,
 )
+
+# Request logging middleware (add before CORS)
+app.add_middleware(LoggingMiddleware)
 
 # CORS middleware
 # Ensure CORS_ORIGINS is a list
