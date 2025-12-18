@@ -1,4 +1,5 @@
 import aiosmtplib
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
@@ -16,13 +17,26 @@ class EmailService:
         self.config_service = AppConfigService(db_session)
 
     async def _get_smtp_config(self) -> Optional[dict]:
-        """Get SMTP configuration from database."""
-        host = await self.config_service.get("SMTP_HOST")
-        port = await self.config_service.get("SMTP_PORT")
-        user = await self.config_service.get("SMTP_USER")
-        password = await self.config_service.get("SMTP_PASSWORD")
-        from_email = await self.config_service.get("SMTP_FROM_EMAIL")
-        use_tls = await self.config_service.get("SMTP_USE_TLS")
+        """
+        Get SMTP configuration.
+        Priority: Environment Variables > Database
+        """
+        # Try environment variables first (Cloud Run)
+        host = os.getenv("SMTP_HOST") or settings.SMTP_HOST
+        port = os.getenv("SMTP_PORT") or settings.SMTP_PORT
+        user = os.getenv("SMTP_USER") or settings.SMTP_USER
+        password = os.getenv("SMTP_PASSWORD") or settings.SMTP_PASSWORD
+        from_email = os.getenv("SMTP_FROM_EMAIL") or settings.SMTP_FROM_EMAIL
+        use_tls = os.getenv("SMTP_USE_TLS") or settings.SMTP_USE_TLS or "true"
+
+        # Fall back to database if environment variables not set
+        if not all([host, port, user, password, from_email]):
+            host = host or await self.config_service.get("SMTP_HOST")
+            port = port or await self.config_service.get("SMTP_PORT")
+            user = user or await self.config_service.get("SMTP_USER")
+            password = password or await self.config_service.get("SMTP_PASSWORD")
+            from_email = from_email or await self.config_service.get("SMTP_FROM_EMAIL")
+            use_tls = use_tls or await self.config_service.get("SMTP_USE_TLS") or "true"
 
         if not all([host, port, user, password, from_email]):
             return None
@@ -50,7 +64,11 @@ class EmailService:
         """Send an email via SMTP."""
         smtp_config = await self._get_smtp_config()
         if not smtp_config:
-            raise ValueError("SMTP configuration not found. Please configure SMTP settings in the database.")
+            raise ValueError(
+                "SMTP configuration not found. Please configure SMTP settings via "
+                "environment variables (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, "
+                "SMTP_FROM_EMAIL, SMTP_USE_TLS) in Cloud Run or in the database."
+            )
 
         try:
             message = MIMEMultipart("alternative")

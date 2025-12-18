@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     BACKEND_URL: str = "http://localhost:8000"  # Backend URL for OAuth callbacks
 
+    # SMTP Configuration (for email verification)
+    # Priority: Environment Variables > Database
+    SMTP_HOST: str | None = None
+    SMTP_PORT: str | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str | None = None
+    SMTP_USE_TLS: str = "true"  # "true" for STARTTLS (port 587), "false" for SSL (port 465)
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
